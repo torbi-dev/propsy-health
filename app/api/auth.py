@@ -1,12 +1,12 @@
 """OAuth authentication API endpoints."""
 import logging
-from fastapi import APIRouter, Depends, Path, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import RedirectResponse, HTMLResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.core.session import set_user_session, get_current_user, SessionUser
 from app.core.templates import templates
-from app.database import get_database, health_check as db_health_check
+from app.database import get_database
 from app.auth.google_oauth import GoogleOAuthService, get_legacy_user_id
 from app.auth.token_storage import TokenStorageService
 from app.config import get_settings

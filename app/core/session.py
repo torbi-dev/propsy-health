@@ -14,16 +14,13 @@ class SessionUser:
         return f"SessionUser(legacy_id={self.legacy_id}, consent={self.consent_given})"
 
 
-async def get_current_user(request: Request) -> SessionUser:
+async def get_current_user(request: Request) -> SessionUser | None:
     """Get current authenticated user from session."""
     legacy_id = request.session.get("legacy_id")
     health_id = request.session.get("health_id")
     
     if not legacy_id or not health_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated. Please connect your Google Health account.",
-        )
+        return None
     
     return SessionUser(
         legacy_id=legacy_id,

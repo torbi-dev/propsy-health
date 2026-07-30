@@ -9,9 +9,9 @@ Features:
 - Log rotation for production
 - Configurable via LOG_LEVEL and LOG_FORMAT in .env
 """
+import regex  # Replaces the standard 'import re'
 import logging
 import logging.handlers
-import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -26,38 +26,32 @@ from app.config import get_settings
 class SensitiveDataFilter(logging.Filter):
     """
     Filter that redacts sensitive information from log messages.
-    
-    Redacts:
-    - OAuth tokens (access_token, refresh_token)
-    - Bearer tokens
-    - API keys
-    - Passwords
-    - JWT tokens
+    Uses the 'regex' module with execution timeouts to guarantee ReDoS immunity.
     """
     
-    # Patterns to redact (compiled for performance and ReDoS-resistant)
+    # Patterns compiled normally (timeout is applied during execution, not compilation)
     PATTERNS = [
-        # OAuth tokens (bounded to 20-2000 chars to prevent ReDoS)
-        (re.compile(r'(access_token["\s:=]+)["\']?([A-Za-z0-9\-_.]{20,2000})["\']?', re.IGNORECASE), r'\1[REDACTED]'),
-        (re.compile(r'(refresh_token["\s:=]+)["\']?([A-Za-z0-9\-_.]{20,2000})["\']?', re.IGNORECASE), r'\1[REDACTED]'),
+        # OAuth tokens
+        (regex.compile(r'(access_token["\s:=]+)["\']?([A-Za-z0-9\-_.]{20,2000})["\']?', regex.IGNORECASE), r'\1[REDACTED]'),
+        (regex.compile(r'(refresh_token["\s:=]+)["\']?([A-Za-z0-9\-_.]{20,2000})["\']?', regex.IGNORECASE), r'\1[REDACTED]'),
         
-        # Bearer tokens in headers (bounded to 1-2000 chars)
-        (re.compile(r'(Bearer\s+)([A-Za-z0-9\-_.]{1,2000})', re.IGNORECASE), r'\1[REDACTED]'),
+        # Bearer tokens in headers
+        (regex.compile(r'(Bearer\s+)([A-Za-z0-9\-_.]{1,2000})', regex.IGNORECASE), r'\1[REDACTED]'),
         
-        # JWT tokens (bounded segments to prevent ReDoS)
-        (re.compile(r'(eyJ[A-Za-z0-9\-_]{1,2000}\.eyJ[A-Za-z0-9\-_]{1,2000}\.[A-Za-z0-9\-_]{1,2000})'), '[REDACTED_JWT]'),
+        # JWT tokens
+        (regex.compile(r'(eyJ[A-Za-z0-9\-_]{1,2000}\.eyJ[A-Za-z0-9\-_]{1,2000}\.[A-Za-z0-9\-_]{1,2000})'), '[REDACTED_JWT]'),
         
         # API keys (generic)
-        (re.compile(r'(api[_-]?key["\s:=]+)["\']?([A-Za-z0-9\-_]{20,2000})["\']?', re.IGNORECASE), r'\1[REDACTED]'),
+        (regex.compile(r'(api[_-]?key["\s:=]+)["\']?([A-Za-z0-9\-_]{20,2000})["\']?', regex.IGNORECASE), r'\1[REDACTED]'),
         
         # Passwords
-        (re.compile(r'(password["\s:=]+)["\']?([^"\s,}]{1,2000})["\']?', re.IGNORECASE), r'\1[REDACTED]'),
+        (regex.compile(r'(password["\s:=]+)["\']?([^"\s,}]{1,2000})["\']?', regex.IGNORECASE), r'\1[REDACTED]'),
         
         # Google OAuth codes
-        (re.compile(r'(code=)([A-Za-z0-9\-_/]{20,2000})'), r'\1[REDACTED]'),
+        (regex.compile(r'(code=)([A-Za-z0-9\-_/]{20,2000})'), r'\1[REDACTED]'),
         
-        # Fernet encrypted tokens (start with gAAAA, bounded length)
-        (re.compile(r'gAAAAAB[A-Za-z0-9\-_]{50,2000}'), '[REDACTED_ENCRYPTED]'),
+        # Fernet encrypted tokens (start with gAAAA)
+        (regex.compile(r'gAAAAAB[A-Za-z0-9\-_]{50,2000}'), '[REDACTED_ENCRYPTED]'),
     ]
     
     def filter(self, record: logging.LogRecord) -> bool:
@@ -72,9 +66,15 @@ class SensitiveDataFilter(logging.Filter):
         return True
     
     def _redact(self, text: str) -> str:
-        """Apply all redaction patterns to text."""
+        """Apply all redaction patterns to text with a timeout to prevent ReDoS."""
         for pattern, replacement in self.PATTERNS:
-            text = pattern.sub(replacement, text)
+            try:
+                # timeout=0.1 (100ms) is passed to sub() to prevent ReDoS
+                text = pattern.sub(replacement, text, timeout=0.1)
+            except regex.TimeoutError:
+                # If a regex times out, we aggressively redact the whole string to be safe
+                logging.getLogger(__name__).warning("Regex timeout during log redaction. Redacting entire message.")
+                return "[REDACTED_DUE_TO_TIMEOUT]"
         return text
     
     def _redact_value(self, value: Any) -> Any:

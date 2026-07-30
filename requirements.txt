@@ -1,15 +1,26 @@
-fastapi==0.115.0
-uvicorn[standard]==0.30.1
-motor==3.6.0
-pymongo==4.9.2
-google-auth==2.29.0
-google-auth-oauthlib==1.2.0
-python-dotenv==1.0.1
-pydantic==2.9.2
-pydantic-settings==2.6.1
-jinja2==3.1.4
-python-multipart==0.0.9
-itsdangerous==2.2.0
-httpx==0.27.2
-cryptography==43.0.0
-bcrypt==4.2.0
+# Core Framework
+fastapi>=0.140.13
+uvicorn[standard]>=0.52.0
+
+# Database
+motor>=3.6.0
+pymongo>=4.17.0
+
+# Google Auth
+google-auth>=2.29.0
+google-auth-oauthlib>=1.2.0
+
+# Configuration & Validation
+python-dotenv>=1.0.1
+pydantic>=2.13.4
+pydantic-settings>=2.14.2
+
+# Templating & Forms (Security patched)
+jinja2>=3.1.6
+python-multipart>=0.0.12
+itsdangerous>=2.2.0
+
+# HTTP & Security
+httpx>=0.27.2
+cryptography>=43.0.3
+bcrypt>=4.2.0

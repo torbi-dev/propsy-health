@@ -1,12 +1,11 @@
 """Admin dashboard routes for managing users and monitoring the system."""
 import logging
-from fastapi import APIRouter, Depends, Request, HTTPException, status, Form
+from fastapi import APIRouter, Depends, Request, HTTPException, Form
 from fastapi.responses import RedirectResponse, HTMLResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import datetime, timezone
 
 from app.core.templates import templates
-from app.core.session import SessionUser, clear_user_session
 from app.database import get_database
 from app.config import get_settings
 from app.services.consent_storage import ConsentStorageService

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Path, Request, status
 from fastapi.responses import RedirectResponse, HTMLResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
-from app.core.session import set_user_session, get_optional_user, SessionUser
+from app.core.session import set_user_session, get_current_user, SessionUser
 from app.core.templates import templates
 from app.database import get_database, health_check as db_health_check
 from app.auth.google_oauth import GoogleOAuthService, get_legacy_user_id
@@ -27,7 +27,7 @@ SESSION_STATE_KEY = "oauth_state"
 @public_router.get("/", response_class=HTMLResponse)
 async def homepage(
     request: Request,
-    current_user: SessionUser | None = Depends(get_optional_user)
+    current_user: SessionUser | None = Depends(get_current_user)
 ):
     """Render the OAuth onboarding homepage."""
     return templates.TemplateResponse(
@@ -40,7 +40,7 @@ async def homepage(
 @public_router.get("/privacy", response_class=HTMLResponse)
 async def privacy_policy(
     request: Request,
-    current_user: SessionUser | None = Depends(get_optional_user)
+    current_user: SessionUser | None = Depends(get_current_user)
 ):
     """Render the Privacy Policy page."""
     return templates.TemplateResponse(
@@ -53,7 +53,7 @@ async def privacy_policy(
 @public_router.get("/contact", response_class=HTMLResponse)
 async def contact_page(
     request: Request,
-    current_user: SessionUser | None = Depends(get_optional_user)
+    current_user: SessionUser | None = Depends(get_current_user)
 ):
     """Render the Contact Us page."""
     return templates.TemplateResponse(
@@ -64,7 +64,7 @@ async def contact_page(
 
 
 @public_router.get("/terms", response_class=HTMLResponse)
-async def terms_page(request: Request, current_user = Depends(get_optional_user)):
+async def terms_page(request: Request, current_user = Depends(get_current_user)):
     return templates.TemplateResponse(request, "terms.html", {"current_user": current_user})
 
 

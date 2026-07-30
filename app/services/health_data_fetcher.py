@@ -2,7 +2,6 @@
 import httpx
 import logging
 from datetime import datetime, timedelta
-from typing import Any
 
 logger = logging.getLogger(__name__)
 BASE_URL = "https://health.googleapis.com/v4"

@@ -1,6 +1,5 @@
 """Session management for authenticated users."""
 from fastapi import Request, HTTPException, status
-from typing import Optional
 
 
 class SessionUser:
@@ -62,21 +61,6 @@ async def get_current_user_with_consent(request: Request) -> SessionUser:
             )
     
     return user
-
-
-async def get_optional_user(request: Request) -> SessionUser | None:
-    """Get current user if authenticated, None otherwise. Does NOT raise exceptions."""
-    legacy_id = request.session.get("legacy_id")
-    health_id = request.session.get("health_id")
-    
-    if not legacy_id or not health_id:
-        return None
-    
-    return SessionUser(
-        legacy_id=legacy_id,
-        health_id=health_id,
-        consent_given=request.session.get("consent_given", False)
-    )
 
 
 def set_user_session(request: Request, legacy_id: str, health_id: str):

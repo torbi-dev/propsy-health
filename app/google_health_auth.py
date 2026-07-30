@@ -50,7 +50,6 @@ class GoogleHealthAuthManager:
     
     def start_oauth_flow(self, client_id: str, port: int = 8080) -> dict:
         """Lance le flux OAuth2"""
-        print(f"\n🔐 Démarrage du flux OAuth pour : {client_id}")
         
         flow = InstalledAppFlow.from_client_secrets_file(
             self.client_secrets_file,
@@ -96,16 +95,12 @@ class GoogleHealthAuthManager:
                 expiry = datetime.fromisoformat(expires_at)
                 # Ajouter une marge de 5 minutes pour éviter les problèmes de timing
                 if expiry > datetime.now(expiry.tzinfo) + timedelta(minutes=5):
-                    print(f"✅ Token encore valide pour {client_id}")
                     return True
             except (ValueError, AttributeError):
                 pass
         
         if not refresh_token:
-            print(f"❌ Aucun refresh_token pour {client_id} - réauthentification requise")
             return False
-        
-        print(f"🔄 Rafraîchissement du token pour : {client_id}")
         
         try:
             # Recréer les credentials avec le refresh_token
@@ -125,15 +120,11 @@ class GoogleHealthAuthManager:
             watch["token"]["access_token"] = creds.token
             watch["token"]["expires_at"] = creds.expiry.isoformat() if creds.expiry else None
             
-            print(f"✅ Token rafraîchi avec succès pour {client_id}")
             return True
             
         except google.auth.exceptions.RefreshError as e:
-            print(f"❌ Échec du rafraîchissement pour {client_id}: {str(e)}")
-            print("💡 Solution: Lancez start_oauth_flow() pour réauthentifier l'utilisateur")
             return False
         except Exception as e:
-            print(f"❌ Erreur inattendue lors du rafraîchissement: {str(e)}")
             return False
     
     def refresh_all_tokens(self) -> dict:
@@ -152,7 +143,7 @@ class GoogleHealthAuthManager:
                 "needs_reauth": not success
             }
             if not success:
-                print(f"⚠️ {client_id} nécessite une réauthentification manuelle")
+                pass
         
         # Sauvegarder les mises à jour
         self._save_data()
@@ -168,7 +159,6 @@ class GoogleHealthAuthManager:
         watch = next((w for w in self.watches if w["client_id"] == client_id), None)
         
         if not watch:
-            print(f"❌ Watch {client_id} non trouvée")
             return None
         
         token_info = watch.get("token", {})
@@ -208,10 +198,8 @@ def get_legacy_user_id(access_token: str) -> tuple[str | None, str | None]:
         health_id  = body.get("healthUserId")
         return legacy_id, health_id
     except requests.HTTPError as e:
-        print(f"  ⚠️  getIdentity HTTP error {resp.status_code} : {resp.text}")
         return None, None
     except Exception as e:
-        print(f"  ⚠️  getIdentity error : {e}")
         return None, None
     
 # =============================================================================

@@ -1,5 +1,4 @@
 """Token storage service with field-level encryption."""
-import json
 import logging
 from datetime import datetime, timezone
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -40,62 +39,16 @@ class TokenStorageService:
     # FIELD-LEVEL ENCRYPTION METHODS
     # ========================================================================
     
-    def _encrypt_token_data(self, token_data: dict) -> dict:
+    def _process_token_data(self, token_data: dict, mode: str) -> dict:
         """
-        Encrypt only sensitive fields within the token object.
-        
-        Encrypted structure:
-        {
-            "legacy_id": "XXXXXX",  ← plaintext
-            "health_id": "12345678901011121314",  ← plaintext
-            "client_id": "xxx.apps.googleusercontent.com",  ← plaintext
-            "token": {
-                "access_token": "gAAAAABk...",  ← ENCRYPTED
-                "refresh_token": "gAAAAABk...",  ← ENCRYPTED
-                "expires_at": "gAAAAABk...",  ← ENCRYPTED
-                "scopes": [...],  ← plaintext
-                "token_type": "Bearer"  ← plaintext
-            },
-            "status": "active",  ← plaintext
-            ...
-        }
+        Encrypt or decrypt sensitive fields within the token object.
         
         Args:
             token_data: Dict with token information
+            mode: Either "encrypt" or "decrypt"
             
         Returns:
-            Dict with encrypted sensitive fields
-        """
-        result = token_data.copy()
-        
-        # Only process if token field exists and is a dict (not already encrypted)
-        if "token" in result and isinstance(result["token"], dict):
-            token = result["token"].copy()
-            
-            for field in self.ENCRYPTED_TOKEN_FIELDS:
-                if field in token and isinstance(token[field], str) and token[field]:
-                    try:
-                        # Check if already encrypted (Fernet tokens start with gAAAA)
-                        if not token[field].startswith("gAAAA"):
-                            token[field] = encrypt(token[field])
-                            logger.debug(f"Encrypted {field} for legacy_id: {result.get('legacy_id')}")
-                    except Exception as e:
-                        logger.error(f"Failed to encrypt {field}: {e}")
-                        raise
-            
-            result["token"] = token
-        
-        return result
-    
-    def _decrypt_token_data(self, token_data: dict) -> dict:
-        """
-        Decrypt only sensitive fields within the token object.
-        
-        Args:
-            token_data: Dict with potentially encrypted token fields
-            
-        Returns:
-            Dict with decrypted sensitive fields
+            Dict with processed sensitive fields
         """
         result = token_data.copy()
         
@@ -105,21 +58,39 @@ class TokenStorageService:
             
             for field in self.ENCRYPTED_TOKEN_FIELDS:
                 if field in token and isinstance(token[field], str) and token[field]:
+                    is_encrypted = token[field].startswith("gAAAA")
+                    
                     try:
-                        # Only decrypt if it looks encrypted (Fernet format)
-                        if token[field].startswith("gAAAA"):
+                        if mode == "encrypt" and not is_encrypted:
+                            token[field] = encrypt(token[field])
+                            logger.debug(f"Encrypted {field} for legacy_id: {result.get('legacy_id')}")
+                            
+                        elif mode == "decrypt" and is_encrypted:
                             token[field] = decrypt(token[field])
                             logger.debug(f"Decrypted {field} for legacy_id: {result.get('legacy_id')}")
+                            
                     except ValueError:
-                        # Field might be plaintext or corrupted - leave as-is
-                        logger.warning(f"Could not decrypt {field} (may be plaintext)")
+                        # During decryption, this means the field might be plaintext or corrupted
+                        if mode == "decrypt":
+                            logger.warning(f"Could not decrypt {field} (may be plaintext or corrupted)")
+                        else:
+                            logger.error(f"Failed to encrypt {field}: ValueError")
+                            raise
                     except Exception as e:
-                        logger.error(f"Unexpected error decrypting {field}: {e}")
+                        logger.error(f"Failed to {mode} {field}: {e}")
                         raise
             
             result["token"] = token
         
         return result
+
+    def _encrypt_token_data(self, token_data: dict) -> dict:
+        """Encrypt sensitive fields within the token object."""
+        return self._process_token_data(token_data, mode="encrypt")
+    
+    def _decrypt_token_data(self, token_data: dict) -> dict:
+        """Decrypt sensitive fields within the token object."""
+        return self._process_token_data(token_data, mode="decrypt")
     
     # ========================================================================
     # CRUD OPERATIONS

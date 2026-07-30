@@ -1,7 +1,6 @@
 """Google OAuth service integrating with existing GoogleHealthAuthManager."""
 import logging
 import secrets
-from urllib.parse import urlencode
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import Flow

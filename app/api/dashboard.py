@@ -39,23 +39,6 @@ async def dashboard_home(
     )
 
 
-# @router.get("/data", response_class=HTMLResponse)
-# async def view_my_data(
-#     request: Request,
-#     current_user: SessionUser = Depends(get_current_user_with_consent)
-# ):
-#     """View Google Health data."""
-#     return templates.TemplateResponse(
-#         request,
-#         "data.html",
-#         {
-#             "current_user": current_user,
-#             "legacy_id": current_user.legacy_id,
-#             "health_id": current_user.health_id,
-#         }
-#     )
-
-
 @router.post("/sync-data")
 async def trigger_sync(
     current_user: SessionUser = Depends(get_current_user_with_consent),

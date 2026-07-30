@@ -35,23 +35,29 @@ class SensitiveDataFilter(logging.Filter):
     - JWT tokens
     """
     
-    # Patterns to redact (compiled for performance)
+    # Patterns to redact (compiled for performance and ReDoS-resistant)
     PATTERNS = [
-        # OAuth tokens
-        (re.compile(r'(access_token["\s:=]+)["\']?([A-Za-z0-9\-_.]{20,})["\']?', re.IGNORECASE), r'\1[REDACTED]'),
-        (re.compile(r'(refresh_token["\s:=]+)["\']?([A-Za-z0-9\-_.]{20,})["\']?', re.IGNORECASE), r'\1[REDACTED]'),
-        # Bearer tokens in headers
-        (re.compile(r'(Bearer\s+)([A-Za-z0-9\-_.]+)', re.IGNORECASE), r'\1[REDACTED]'),
-        # JWT tokens
-        (re.compile(r'(eyJ[A-Za-z0-9\-_]+\.eyJ[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+)'), '[REDACTED_JWT]'),
+        # OAuth tokens (bounded to 20-2000 chars to prevent ReDoS)
+        (re.compile(r'(access_token["\s:=]+)["\']?([A-Za-z0-9\-_.]{20,2000})["\']?', re.IGNORECASE), r'\1[REDACTED]'),
+        (re.compile(r'(refresh_token["\s:=]+)["\']?([A-Za-z0-9\-_.]{20,2000})["\']?', re.IGNORECASE), r'\1[REDACTED]'),
+        
+        # Bearer tokens in headers (bounded to 1-2000 chars)
+        (re.compile(r'(Bearer\s+)([A-Za-z0-9\-_.]{1,2000})', re.IGNORECASE), r'\1[REDACTED]'),
+        
+        # JWT tokens (bounded segments to prevent ReDoS)
+        (re.compile(r'(eyJ[A-Za-z0-9\-_]{1,2000}\.eyJ[A-Za-z0-9\-_]{1,2000}\.[A-Za-z0-9\-_]{1,2000})'), '[REDACTED_JWT]'),
+        
         # API keys (generic)
-        (re.compile(r'(api[_-]?key["\s:=]+)["\']?([A-Za-z0-9\-_]{20,})["\']?', re.IGNORECASE), r'\1[REDACTED]'),
+        (re.compile(r'(api[_-]?key["\s:=]+)["\']?([A-Za-z0-9\-_]{20,2000})["\']?', re.IGNORECASE), r'\1[REDACTED]'),
+        
         # Passwords
-        (re.compile(r'(password["\s:=]+)["\']?([^"\s,}]+)["\']?', re.IGNORECASE), r'\1[REDACTED]'),
+        (re.compile(r'(password["\s:=]+)["\']?([^"\s,}]{1,2000})["\']?', re.IGNORECASE), r'\1[REDACTED]'),
+        
         # Google OAuth codes
-        (re.compile(r'(code=)([A-Za-z0-9\-_/]{20,})'), r'\1[REDACTED]'),
-        # Fernet encrypted tokens (start with gAAAA)
-        (re.compile(r'gAAAAAB[A-Za-z0-9\-_]{50,}'), '[REDACTED_ENCRYPTED]'),
+        (re.compile(r'(code=)([A-Za-z0-9\-_/]{20,2000})'), r'\1[REDACTED]'),
+        
+        # Fernet encrypted tokens (start with gAAAA, bounded length)
+        (re.compile(r'gAAAAAB[A-Za-z0-9\-_]{50,2000}'), '[REDACTED_ENCRYPTED]'),
     ]
     
     def filter(self, record: logging.LogRecord) -> bool:
@@ -167,86 +173,74 @@ def setup_logging() -> None:
     Call this once at application startup (in main.py).
     """
     settings = get_settings()
-    
-    # Determine log level
     log_level = getattr(logging, settings.log_level.upper(), logging.INFO)
+    use_json = settings.is_production
     
-    # Get root logger
+    # 1. Configure Root Logger
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
-    
-    # Clear existing handlers
     root_logger.handlers.clear()
     
     # Add sensitive data filter globally
     sensitive_filter = SensitiveDataFilter()
     
-    # Determine format based on environment
-    use_json = settings.is_production
+    # 2. Console Handler (Common to both Dev and Prod)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(log_level)
+    console_handler.addFilter(sensitive_filter)
     
     if use_json:
-        # Production: JSON format to file + console
-        formatter = JSONFormatter()
+        console_handler.setFormatter(JSONFormatter())
+    else:
+        console_format = "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+        console_handler.setFormatter(ColoredFormatter(console_format, datefmt="%H:%M:%S"))
         
-        # Console handler (JSON)
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(log_level)
-        console_handler.setFormatter(formatter)
-        console_handler.addFilter(sensitive_filter)
-        root_logger.addHandler(console_handler)
-        
-        # File handler with rotation
+    root_logger.addHandler(console_handler)
+    
+    # 3. File Handlers (Production only)
+    if use_json:
         log_dir = Path("logs")
         log_dir.mkdir(exist_ok=True)
+        formatter = JSONFormatter()
         
-        file_handler = logging.handlers.RotatingFileHandler(
-            log_dir / "app.log",
-            maxBytes=10 * 1024 * 1024,  # 10 MB
-            backupCount=10,
-            encoding="utf-8"
-        )
-        file_handler.setLevel(log_level)
-        file_handler.setFormatter(formatter)
-        file_handler.addFilter(sensitive_filter)
-        root_logger.addHandler(file_handler)
+        # Helper function to eliminate RotatingFileHandler redundancy
+        def create_rotating_handler(filename: str, level: int) -> logging.handlers.RotatingFileHandler:
+            handler = logging.handlers.RotatingFileHandler(
+                log_dir / filename,
+                maxBytes=10 * 1024 * 1024,  # 10 MB
+                backupCount=10,
+                encoding="utf-8"
+            )
+            handler.setLevel(level)
+            handler.setFormatter(formatter)
+            handler.addFilter(sensitive_filter)
+            return handler
+
+        root_logger.addHandler(create_rotating_handler("app.log", log_level))
+        root_logger.addHandler(create_rotating_handler("error.log", logging.ERROR))
         
-        # Separate error log
-        error_handler = logging.handlers.RotatingFileHandler(
-            log_dir / "error.log",
-            maxBytes=10 * 1024 * 1024,
-            backupCount=10,
-            encoding="utf-8"
-        )
-        error_handler.setLevel(logging.ERROR)
-        error_handler.setFormatter(formatter)
-        error_handler.addFilter(sensitive_filter)
-        root_logger.addHandler(error_handler)
-    
-    else:
-        # Development: Colored console output
-        console_format = "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
-        formatter = ColoredFormatter(console_format, datefmt="%H:%M:%S")
-        
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(log_level)
-        console_handler.setFormatter(formatter)
-        console_handler.addFilter(sensitive_filter)
-        root_logger.addHandler(console_handler)
-    
-    # Reduce noise from third-party libraries
-    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-    logging.getLogger("uvicorn.error").setLevel(logging.INFO)
-    logging.getLogger("google_auth_oauthlib").setLevel(logging.WARNING)
-    logging.getLogger("oauthlib").setLevel(logging.WARNING)
-    logging.getLogger("requests_oauthlib").setLevel(logging.WARNING)
-    logging.getLogger("motor").setLevel(logging.WARNING)
-    logging.getLogger("pymongo").setLevel(logging.WARNING)
-    
-    # Log startup info
-    logger = logging.getLogger(__name__)
-    logger.info(f"📝 Logging configured: level={settings.log_level}, format={'JSON' if use_json else 'colored'}")
-    if use_json:
+        # Log startup info for production
+        logger = logging.getLogger(__name__)
+        logger.info(f"📝 Logging configured: level={settings.log_level}, format=JSON")
         logger.info(f"📂 Log files: logs/app.log, logs/error.log")
+    else:
+        # Log startup info for development
+        logger = logging.getLogger(__name__)
+        logger.info(f"📝 Logging configured: level={settings.log_level}, format=colored")
+    
+    # 4. Reduce noise from third-party libraries (DRY dictionary approach)
+    third_party_levels = {
+        "uvicorn.access": logging.WARNING,
+        "uvicorn.error": logging.INFO,
+        "google_auth_oauthlib": logging.WARNING,
+        "oauthlib": logging.WARNING,
+        "requests_oauthlib": logging.WARNING,
+        "motor": logging.WARNING,
+        "pymongo": logging.WARNING,
+    }
+    
+    for lib_name, level in third_party_levels.items():
+        logging.getLogger(lib_name).setLevel(level)
 
 
 def get_logger(name: str) -> logging.Logger:

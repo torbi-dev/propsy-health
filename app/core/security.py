@@ -481,7 +481,7 @@ def setup_security(app: FastAPI):
             request.url.path in ("/docs", "/redoc", "/openapi.json")
         )
         
-        should_ignore = is_noisy_path and response.status_code == 200
+        should_ignore = is_noisy_path and response.status_code == status.HTTP_200_OK
         
         if not should_ignore:
             # FIXED: Use get_client_ip to log the real user IP

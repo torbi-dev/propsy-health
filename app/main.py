@@ -56,10 +56,9 @@ def create_app() -> FastAPI:
 
     setup_security(app)
 
-    # ==========================================
+
     # MIDDLEWARES (Order matters!)
-    # Added first -> Runs last (closest to your app routes)
-    # ==========================================
+    # Added first -> Runs last (closest to the app routes)
     
     # 1. Session Validation (Needs session, so it must run after SessionMiddleware)
     app.add_middleware(SessionValidationMiddleware)
@@ -104,9 +103,8 @@ def create_app() -> FastAPI:
         from app.database import health_check
         return await health_check()
     
-    # ==========================================
+    
     # EXCEPTION HANDLERS
-    # ==========================================
     
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
@@ -127,8 +125,8 @@ def create_app() -> FastAPI:
         Redirects 401 (Unauthorized) to homepage instead of showing error page.
         """
         # If user is not authenticated, redirect to homepage
-        if exc.status_code == 401:
-            return RedirectResponse(url="/?not_authenticated=true", status_code=303)
+        if exc.status_code == status.HTTP_401_UNAUTHORIZED:
+            return RedirectResponse(url="/?not_authenticated=true", status_code=status.HTTP_303_SEE_OTHER)
         
         # For all other HTTP errors (403, 404, 500, etc.), show the error page
         from app.core.templates import templates
@@ -146,12 +144,12 @@ def create_app() -> FastAPI:
     @app.exception_handler(AdminAuthError)
     async def admin_auth_error_handler(request: Request, exc: AdminAuthError):
         """Redirect unauthenticated admins to the login page."""
-        return RedirectResponse(url="/admin/login", status_code=303)
+        return RedirectResponse(url="/admin/login", status_code=status.HTTP_303_SEE_OTHER)
         
     logger.info("✅ FastAPI application configured")
     return app
 
-# Create app instance for uvicorn
+
 app = create_app()
 
 if __name__ == "__main__":

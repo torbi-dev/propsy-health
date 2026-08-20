@@ -6,7 +6,7 @@ NOT USE IN CURRENT VERSION: you need this for a dashboard that shows health data
 """
 import logging
 import json
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.database import get_database
@@ -75,7 +75,7 @@ async def get_health_data(
         
     except ValueError as e:
         logger.error(f"Authentication error: {e}")
-        raise HTTPException(status_code=401, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
     except Exception as e:
         logger.error(f"Error fetching health data: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to fetch health data from Google.")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to fetch health data from Google.")

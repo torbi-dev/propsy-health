@@ -5,7 +5,7 @@ This solves the "stale session" problem where an admin deletes a user
 but their browser session cookie remains valid.
 """
 import logging
-from fastapi import Request
+from fastapi import Request, status
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import RedirectResponse
 
@@ -83,7 +83,7 @@ class SessionValidationMiddleware(BaseHTTPMiddleware):
                     request.session.clear()
                     
                     if not request.url.path.startswith("/admin"):
-                        return RedirectResponse(url="/?session_expired=true", status_code=303)
+                        return RedirectResponse(url="/?session_expired=true", status_code=status.HTTP_303_SEE_OTHER)
                 
             except Exception as e:
                 logger.error(f"Session validation error: {e}")

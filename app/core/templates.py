@@ -12,9 +12,8 @@ if not TEMPLATES_DIR.exists():
 # Initialize templates ONLY ONCE
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-# ==========================================
-# 1. CUSTOM FILTERS
-# ==========================================
+
+# CUSTOM FILTERS
 def format_datetime(value, format="%d/%m/%Y %H:%M"):
     if value:
         return value.strftime(format)
@@ -23,9 +22,8 @@ def format_datetime(value, format="%d/%m/%Y %H:%M"):
 # Register the custom filter
 templates.env.filters["datetime"] = format_datetime
 
-# ==========================================
-# 2. GLOBAL TRANSLATION FUNCTION
-# ==========================================
+
+# GLOBAL TRANSLATION FUNCTION
 # We use @jinja2.pass_context to give the function access to the current template context.
 # This allows us to automatically read the language from request.state.lang 
 # without having to monkey-patch TemplateResponse or pass it manually from every route.

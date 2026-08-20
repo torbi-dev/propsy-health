@@ -1,6 +1,6 @@
 """Admin dashboard routes for managing users and monitoring the system."""
 import logging
-from fastapi import APIRouter, Depends, Request, HTTPException, Form
+from fastapi import APIRouter, Depends, Request, HTTPException, Form, status
 from fastapi.responses import RedirectResponse, HTMLResponse
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import datetime, timezone
@@ -37,7 +37,7 @@ async def require_admin(request: Request):
 @router.get("/login", response_class=HTMLResponse)
 async def admin_login_page(request: Request):
     if request.session.get("is_admin"):
-        return RedirectResponse(url="/admin/", status_code=303)
+        return RedirectResponse(url="/admin/", status_code=status.HTTP_303_SEE_OTHER)
     return templates.TemplateResponse(request, "admin/login.html", {"error": None})
 
 @router.post("/login")
@@ -45,7 +45,7 @@ async def admin_login_submit(request: Request, password: str = Form(...)):
     if password == settings.admin_password:
         request.session["is_admin"] = True
         logger.info(f"✅ Admin login successful from {request.client.host}")
-        return RedirectResponse(url="/admin/", status_code=303)
+        return RedirectResponse(url="/admin/", status_code=status.HTTP_303_SEE_OTHER)
     
     logger.warning(f"❌ Failed admin login attempt from {request.client.host}")
     return templates.TemplateResponse(request, "admin/login.html", {"error": "Invalid password"})
@@ -53,7 +53,7 @@ async def admin_login_submit(request: Request, password: str = Form(...)):
 @router.get("/logout")
 async def admin_logout(request: Request):
     request.session.pop("is_admin", None)
-    return RedirectResponse(url="/admin/login", status_code=303)
+    return RedirectResponse(url="/admin/login", status_code=status.HTTP_303_SEE_OTHER)
 
 # ============================================================================
 # DASHBOARD & STATS
@@ -111,7 +111,7 @@ async def admin_user_detail(request: Request, legacy_id: str, db: AsyncIOMotorDa
     latest_health = await health_col.find_one({"legacy_id": legacy_id}, sort=[("date_of_datas", -1)])
     
     if not consent and not token:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
         
     return templates.TemplateResponse(request, "admin/user_detail.html", {
         "user": consent or {"legacy_id": legacy_id, "status": "unknown"},
@@ -150,4 +150,4 @@ async def admin_force_delete_user(
     await health_storage.delete_all_records(legacy_id)
     
     logger.warning(f"🚨 ADMIN FORCE DELETED ALL DATA FOR USER: {legacy_id}")
-    return RedirectResponse(url=f"/admin/users/{legacy_id}?deleted=true", status_code=303)
+    return RedirectResponse(url=f"/admin/users/{legacy_id}?deleted=true", status_code=status.HTTP_303_SEE_OTHER)

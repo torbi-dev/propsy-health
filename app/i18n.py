@@ -1,4 +1,3 @@
-# app/i18n.py
 
 translations = {
     "en": {

@@ -53,11 +53,11 @@ async def trigger_sync(
     token_doc = await token_storage.get_token_with_details(current_user.legacy_id)
     
     if not token_doc or not token_doc.get("token"):
-        raise HTTPException(status_code=400, detail="No active Google connection.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No active Google connection.")
         
     access_token = token_doc["token"].get("access_token")
     if not access_token:
-        raise HTTPException(status_code=400, detail="Access token missing.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Access token missing.")
 
     # 2. Run the sync via the service
     sync_service = SyncService(db)

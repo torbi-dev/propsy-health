@@ -7,20 +7,15 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from app.core.session import set_user_session, get_current_user, SessionUser
 from app.core.templates import templates
 from app.database import get_database
-from app.auth.google_oauth import GoogleOAuthService, get_legacy_user_id
-from app.auth.token_storage import TokenStorageService
 from app.config import get_settings
+
+from app.auth.google_callback import oauth_service, OAuthCallbackService, create_error_response, OAuthCallbackError
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
 router = APIRouter(prefix="/api", tags=["authentication"])
 public_router = APIRouter(tags=["public"])
-
-# Initialize services
-client_secrets_path = (settings.google_secret_file_prod if settings.is_production else settings.google_secret_file_test)
-
-oauth_service = GoogleOAuthService(client_secrets_path=client_secrets_path)
 
 SESSION_STATE_KEY = "oauth_state"
 
@@ -95,150 +90,70 @@ async def oauth_callback(
     state: str | None = None,
     error: str | None = None,
     error_description: str | None = None,
-    db: AsyncIOMotorDatabase = Depends(get_database)
+    db: AsyncIOMotorDatabase = Depends(get_database),
 ):
     """Handle Google OAuth callback with PKCE and proper error handling."""
 
-    # === 1. Handle OAuth errors from Google ===
+    # 1. Handle OAuth provider errors
     if error:
-        logger.error(f"❌ OAuth error: {error} - {error_description}")
-        return templates.TemplateResponse(
-            "error.html",
-            {
-                "request": request,
-                "title": "Authentication Failed",
-                "message": f"Google error: {error}",
-                "details": error_description,
-            },
+        return create_error_response(
+            request, 
+            "Authentication Failed", 
+            f"Google error: {error}", 
+            error_description
         )
 
-    # === 2. Validate required parameters ===
+    # 2. Validate required parameters
     if not code or not state:
-        logger.error("❌ Missing code or state in callback")
-        return templates.TemplateResponse(
+        return create_error_response(
             request,
-            "error.html",
-            {
-                "title": "Invalid Callback",
-                "message": "Missing code or state parameter",
-                "details": f"Received: code={bool(code)}, state={bool(state)}",
-            },
+            "Invalid Callback",
+            "Missing code or state parameter",
+            f"Received: code={bool(code)}, state={bool(state)}"
         )
 
-    # === 3. Verify CSRF state + retrieve PKCE verifier ===
+    # 3. Verify CSRF state + retrieve PKCE verifier
     stored_state = None
     code_verifier = None
-
     if hasattr(request, "session"):
         stored_state = request.session.pop(SESSION_STATE_KEY, None)
         code_verifier = request.session.pop("oauth_code_verifier", None)
 
     if stored_state and stored_state != state:
-        logger.error(f"❌ State mismatch: {stored_state} != {state}")
-        return templates.TemplateResponse(
-            request,
-            "error.html",
-            {
-                "title": "Security Error",
-                "message": "Invalid state parameter",
-                "details": "CSRF validation failed",
-            },
+        logger.error(f"❌ State mismatch: expected '{stored_state}', got '{state}'")
+        return create_error_response(
+            request, 
+            "Security Error", 
+            "Invalid state parameter", 
+            "CSRF validation failed",
+            status_code=status.HTTP_403_FORBIDDEN
         )
 
-    # === 4. Exchange code for tokens ===
+    # 4. Process business logic via Service
     try:
-        logger.info("🔄 Exchanging code for tokens")
-
-        oauth_data = await oauth_service.handle_callback(
+        service = OAuthCallbackService(db)
+        legacy_id, health_id = await service.process_callback(
             code=code,
             state=state,
-            redirect_uri=settings.redirect_uri,
             code_verifier=code_verifier,
+            redirect_uri=settings.redirect_uri,
         )
-
-        logger.info(
-            "✅ Token exchange successful"
-        )
-
+    except OAuthCallbackError as e:
+        return create_error_response(request, e.title, e.message, e.details, e.status_code)
     except Exception as e:
-        logger.error(f"❌ Token exchange failed: {e}", exc_info=True)
-        return templates.TemplateResponse(
-            request,
-            "error.html",
-            {
-                "title": "Token Exchange Failed",
-                "message": "Could not complete authentication",
-                "details": str(e),
-            },
+        logger.error(f"❌ Unexpected error during OAuth callback: {e}", exc_info=True)
+        return create_error_response(
+            request, 
+            "Internal Server Error", 
+            "An unexpected error occurred during authentication", 
+            str(e),
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-    # === 5. Resolve user identifiers ===
-    try:
-        logger.info("🔍 Calling get_legacy_user_id()...")
-
-        legacy_id, health_id = get_legacy_user_id(
-            oauth_data["token"]["access_token"]
-        )
-
-        logger.info("✅ Retrieved IDs: legacy, health")
-
-    except Exception as e:
-        logger.error(f"❌ Failed to get user IDs: {e}", exc_info=True)
-        return templates.TemplateResponse(
-            request,
-            "error.html",
-            {
-                "title": "Identity Retrieval Failed",
-                "message": "Could not retrieve user identifiers",
-                "details": str(e),
-            },
-        )
-
-    # === 6. Store in MongoDB ===
-    try:
-        token_storage = TokenStorageService(db)
-
-        token_document = {
-            "legacy_id": legacy_id,
-            "health_id": health_id,
-            "client_id": oauth_data["client_id"],
-            "token": oauth_data["token"],
-        }
-
-        logger.info("💾 Storing token for legacy_id")
-
-        existing = await token_storage.get_token_by_legacy_id(legacy_id)
-
-        if existing:
-            await token_storage.update_token(
-                legacy_id,
-                {
-                    "token": oauth_data["token"],
-                    "health_id": health_id,
-                },
-            )
-            logger.info("🔄 Updated existing token")
-        else:
-            await token_storage.create_token(token_document)
-            logger.info("✅ Created new token document")
-
-    except Exception as e:
-        logger.error(f"❌ MongoDB storage failed: {e}", exc_info=True)
-        return templates.TemplateResponse(
-            request,
-            "error.html",
-            {
-                "title": "Storage Failed",
-                "message": "Could not save authentication data",
-                "details": str(e),
-            },
-        )
-
-    # === 7. Success page ===
+    # 5. Success: Set session and redirect
     set_user_session(request, legacy_id, health_id)
-
-    logger.info("🎉 OAuth flow complete for legacy_id")
-
+    logger.info(f"🎉 OAuth flow complete for legacy_id: {legacy_id}")
+    
     return RedirectResponse(url="/consent", status_code=status.HTTP_303_SEE_OTHER)
 
 

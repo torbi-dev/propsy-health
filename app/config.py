@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     encryption_key: str  # Must be 32 bytes for Fernet
     rate_limit_window: int = 60
     rate_limit_requests: int = 100
-    environment: str = "development"
+    environment: str = "production"
 
     admin_password: str
     

@@ -30,9 +30,7 @@ class SyncService:
         self.health_storage = HealthDataStorage(db)
         self.progress_col = db[self.COLLECTION_NAME]
     
-    # =========================================================================
     # MISSING DATE DETECTION
-    # =========================================================================
     
     async def get_missing_dates(self, legacy_id: str) -> list[str]:
         """
@@ -64,9 +62,7 @@ class SyncService:
             
         return missing_dates
     
-    # =========================================================================
     # PROGRESS TRACKING
-    # =========================================================================
     
     async def get_progress(self, legacy_id: str) -> dict:
         """
@@ -127,9 +123,7 @@ class SyncService:
         await self.progress_col.delete_one({"legacy_id": legacy_id})
         logger.info(f"🧹 Cleared sync progress for {legacy_id}")
     
-    # =========================================================================
     # MAIN SYNC LOGIC
-    # =========================================================================
     
     async def sync_missing_data(
         self,
@@ -201,9 +195,7 @@ class SyncService:
             "total": total,
         }
     
-    # =========================================================================
     # DATA EXPORT
-    # =========================================================================
     
     async def export_all_data(self, legacy_id: str) -> list[dict]:
         """

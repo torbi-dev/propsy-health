@@ -6,9 +6,8 @@ from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
 BASE_URL = "https://health.googleapis.com/v4"
 
-# ============================================================================
+
 # RAW API FETCHING (Handles Pagination)
-# ============================================================================
 
 async def _fetch_rollup(access_token: str, data_type: str, payload: dict) -> dict:
     url = f"{BASE_URL}/users/me/dataTypes/{data_type}/dataPoints:rollUp"
@@ -52,9 +51,8 @@ async def _fetch_list(access_token: str, data_type: str, payload: dict) -> dict:
             
     return {"dataPoints": all_points}
 
-# ============================================================================
-# PARSING LOGIC (Adapted from utils.py)
-# ============================================================================
+
+# PARSING LOGIC
 
 def _parse_steps(data: dict) -> int:
     total = 0
@@ -198,9 +196,8 @@ def _parse_sleep(data_points: list) -> dict:
         "raw_sleep": raw_sessions
     }
 
-# ============================================================================
+
 # MAIN ORCHESTRATOR
-# ============================================================================
 
 async def fetch_daily_health_data(access_token: str, date: str) -> dict:
     """Fetches all required data types for a specific date and returns a parsed dictionary."""

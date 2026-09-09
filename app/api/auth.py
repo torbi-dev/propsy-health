@@ -94,7 +94,7 @@ async def oauth_callback(
 ):
     """Handle Google OAuth callback with PKCE and proper error handling."""
 
-    # 1. Handle OAuth provider errors
+    # Handle OAuth provider errors
     if error:
         return create_error_response(
             request, 
@@ -112,7 +112,7 @@ async def oauth_callback(
             f"Received: code={bool(code)}, state={bool(state)}"
         )
 
-    # 3. Verify CSRF state + retrieve PKCE verifier
+    # Verify CSRF state + retrieve PKCE verifier
     stored_state = None
     code_verifier = None
     if hasattr(request, "session"):
@@ -129,7 +129,7 @@ async def oauth_callback(
             status_code=status.HTTP_403_FORBIDDEN
         )
 
-    # 4. Process business logic via Service
+    # Process business logic via Service
     try:
         service = OAuthCallbackService(db)
         legacy_id, health_id = await service.process_callback(
@@ -150,7 +150,7 @@ async def oauth_callback(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-    # 5. Success: Set session and redirect
+    # Success: Set session and redirect
     set_user_session(request, legacy_id, health_id)
     logger.info(f"🎉 OAuth flow complete for legacy_id: {legacy_id}")
     

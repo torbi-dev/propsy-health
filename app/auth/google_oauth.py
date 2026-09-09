@@ -1,6 +1,8 @@
 """Google OAuth service integrating with existing GoogleHealthAuthManager."""
+import json
 import logging
 import secrets
+from typing import Union
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import Flow
@@ -10,11 +12,9 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 # Import existing components from your codebase
-# Adjust import path as needed for your project structure
 try:
     from app.google_health_auth import GoogleHealthAuthManager, get_legacy_user_id
 except ImportError:
-    # Fallback for development - replace with actual implementation
     logger.warning("⚠️ google_health_auth module not found - using stubs")
     
     class GoogleHealthAuthManager:
@@ -31,20 +31,63 @@ class GoogleOAuthService:
     """
     Service for handling Google OAuth flow for Google Health API.
     
-    Converts the existing run_local_server() flow to web-compatible
-    authorization_url() and fetch_token() pattern.
+    Supports both file-based and dict-based client configuration.
     """
     
-    def __init__(self, client_secrets_path: str):
-        self.client_secrets_path = client_secrets_path
+    def __init__(
+        self, 
+        client_config: Union[str, dict]  # str = file path, dict = config directly
+    ):
+        """
+        Initialize OAuth service.
+        
+        Args:
+            client_config: Either a file path to client secrets JSON,
+                          or a dict containing the client configuration
+        """
+        self.client_config = client_config
         self.scopes = settings.google_health_scopes
+        self._config_dict = None  # Cache for parsed config
+    
+    def _get_config_dict(self) -> dict:
+        """
+        Load and cache client configuration as dictionary.
+        
+        Returns:
+            Client configuration dictionary
+        """
+        if self._config_dict is not None:
+            return self._config_dict
+        
+        if isinstance(self.client_config, dict):
+            # Already a dictionary
+            self._config_dict = self.client_config
+        else:
+            # File path - load and parse
+            with open(self.client_config, 'r') as f:
+                self._config_dict = json.load(f)
+        
+        return self._config_dict
     
     def _create_flow(self, redirect_uri: str | None = None) -> Flow:
         """Create OAuth flow instance with proper configuration."""
+        config = self._get_config_dict()
         uri = redirect_uri or settings.redirect_uri
         
-        return Flow.from_client_secrets_file(
-            self.client_secrets_path,
+        # Update redirect URI in config if provided
+        # Handle both "web" and "installed" app types
+        config_type = None
+        if "web" in config:
+            config_type = "web"
+        elif "installed" in config:
+            config_type = "installed"
+        
+        if config_type:
+            # Override redirect URI in config
+            config[config_type]["redirect_uris"] = [uri]
+        
+        return Flow.from_client_config(
+            client_config=config,
             scopes=self.scopes,
             redirect_uri=uri
         )
@@ -80,7 +123,7 @@ class GoogleOAuthService:
         code: str, 
         state: str, 
         redirect_uri: str | None = None,
-        code_verifier: str | None = None  # ← NEW PARAM
+        code_verifier: str | None = None
     ) -> dict:
         """Handle OAuth callback with PKCE support."""
         flow = self._create_flow(redirect_uri)
@@ -91,7 +134,7 @@ class GoogleOAuthService:
             fetch_kwargs["code_verifier"] = code_verifier
         
         try:
-            flow.fetch_token(**fetch_kwargs)  # ← Use kwargs
+            flow.fetch_token(**fetch_kwargs)
         except Exception as e:
             logger.error(f"❌ Token exchange failed: {e}")
             raise ValueError(f"Failed to exchange code for tokens: {e}")

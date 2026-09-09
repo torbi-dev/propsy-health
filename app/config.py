@@ -1,6 +1,10 @@
 """Application configuration using Pydantic Settings."""
+import os
+import json
 from functools import lru_cache
+from typing import Any
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import model_validator
 
 
 class Settings(BaseSettings):
@@ -15,21 +19,17 @@ class Settings(BaseSettings):
 
     # Application Info
     app_name: str = "Sanpsy Health"
+    environment: str = "production"
     
-    # Google OAuth
-    google_client_id: str
-    google_client_secret: str
-
-    google_secret_file_test: str
-    google_secret_file_prod: str
+    # --- Google OAuth ---
+    # Avoid pydantic's error for complex nested structures by using Any type
+    google_oauth_config: Any = None
     
     # Application Security
     secret_key: str
-    encryption_key: str  # Must be 32 bytes for Fernet
+    encryption_key: str
     rate_limit_window: int = 60
     rate_limit_requests: int = 100
-    environment: str = "production"
-
     admin_password: str
     
     # MongoDB
@@ -43,6 +43,27 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
     
+    @model_validator(mode='after')
+    def resolve_google_oauth_config(self) -> 'Settings':
+        """
+        Charge et valide la configuration OAuth depuis la variable d'environnement JSON.
+        """
+        env_json = os.getenv("GOOGLE_OAUTH_CONFIG_JSON")
+        
+        if env_json:
+            try:
+                self.google_oauth_config = json.loads(env_json)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Le JSON dans GOOGLE_OAUTH_CONFIG_JSON est invalide : {e}")
+        else:
+            # Security : if the env variable is missing, raise an error to prevent misconfiguration
+            raise ValueError(
+                "La variable d'environnement 'GOOGLE_OAUTH_CONFIG_JSON' est requise. "
+                "Veuillez la définir dans votre fichier .env (local) ou dans Secret Manager (Cloud Run)."
+            )
+            
+        return self
+
     @property
     def redirect_uri(self) -> str:
         """Build full redirect URI from base URL and path."""

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connection Successful</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: #22c55e;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+        }
+        .success-icon svg {
+            width: 40px;
+            height: 40px;
+            color: white;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 24px;
+            font-size: 1.5rem;
+        }
+        .info-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .info-card h3 {
+            color: #666;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+        .info-card p {
+            color: #333;
+            font-family: monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+        }
+        .btn {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            margin-top: 24px;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #556cd6; }
+        .footer {
+            margin-top: 32px;
+            color: #999;
+            font-size: 0.875rem;
+        }
+        @media (prefers-color-scheme: dark) {
+            body { background: linear-gradient(135deg, #0f2027 0%, #203a43 100%); }
+            .container { background: #1e1e2e; }
+            h1 { color: #fff; }
+            .info-card { background: #2a2a4a; }
+            .info-card h3 { color: #aaa; }
+            .info-card p { color: #fff; }
+            .footer { color: #666; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="success-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+        </div>
+        
+        <h1>Google Health Connected!</h1>
+        <p>Your account has been successfully authenticated and tokens have been stored securely.</p>
+        
+        <div class="info-card">
+            <h3>Legacy ID</h3>
+            <p>{{ legacy_id }}</p>
+        </div>
+        
+        <div class="info-card">
+            <h3>Health ID</h3>
+            <p>{{ health_id }}</p>
+        </div>
+        
+        <a href="/dashboard" class="btn">Return to Home</a>
+        
+        <div class="footer">
+            <p>🔐 Tokens stored in MongoDB</p>
+            <p>Ready for Google Health API synchronization</p>
+        </div>
+    </div>
+</body>
+</html>

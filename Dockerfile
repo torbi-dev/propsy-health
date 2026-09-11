@@ -56,7 +56,7 @@ USER appuser
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:${PORT}/health')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://0.0.0.0:${PORT}/health')" || exit 1
 
 # Expose port (Cloud Run uses PORT env var, default 8080)
 EXPOSE 8080

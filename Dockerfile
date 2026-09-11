@@ -44,7 +44,9 @@ COPY --from=builder /opt/venv /opt/venv
 
 # Copy application code
 COPY app/ ./app/
-COPY client_secret/ ./client_secret/
+
+# ⚠️ LIGNE SUPPRIMÉE : COPY client_secret/ ./client_secret/ 
+# (Plus nécessaire, la config vient maintenant de GOOGLE_OAUTH_CONFIG_JSON)
 
 # Create logs directory
 RUN mkdir -p /app/logs && chown -R appuser:appuser /app
@@ -60,5 +62,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 EXPOSE 8080
 
 # Start the application
-# Using uvicorn with multiple workers for production
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --workers 1 --log-level info"]

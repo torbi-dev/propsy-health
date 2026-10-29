@@ -1,33 +1,85 @@
 {% extends "admin/base.html" %}
 {% block title %}All Users{% endblock %}
+
 {% block content %}
-    <h1>All Users (Consent Records)</h1>
-    <div class="card">
-        <table>
-            <thead>
-                <tr>
-                    <th>Legacy ID</th>
-                    <th>Health ID</th>
-                    <th>Status</th>
-                    <th>Consent Version</th>
-                    <th>Last Updated</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in users %}
-                <tr>
-                    <td><code>{{ user.legacy_id }}</code></td>
-                    <td><code>{{ user.health_id }}</code></td>
-                    <td><span class="badge badge-{{ user.status }}">{{ user.status | upper }}</span></td>
-                    <td>v{{ user.consent_version }}</td>
-                    <td>{{ user.updated_at[:16] if user.updated_at else user.consented_at[:16] }}</td>
-                    <td><a href="/admin/users/{{ user.legacy_id }}" class="btn btn-primary">Manage</a></td>
-                </tr>
-                {% else %}
-                <tr><td colspan="6" style="text-align:center;">No users found.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<div class="container" style="padding: 40px 24px;">
+    
+    <!-- Page Header -->
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">👥 All Users</h1>
+            <p class="page-subtitle">Manage consent records and user data synchronization</p>
+        </div>
+        <a href="/admin/" class="btn-back">
+            <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+        </a>
     </div>
+
+    <!-- Users Table -->
+    <div class="modern-table-container">
+        <div style="overflow-x: auto;">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Legacy ID</th>
+                        <th>Health ID</th>
+                        <th>Status</th>
+                        <th>Consent Version</th>
+                        <th>Last Updated</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>
+                            <span class="id-code">{{ user.legacy_id }}</span>
+                        </td>
+                        <td>
+                            <span class="id-code" style="background: #eef2ff; color: #4338ca;">{{ user.health_id }}</span>
+                        </td>
+                        <td>
+                            <span class="status-badge {{ user.status }}">
+                                {% if user.status == 'active' %}
+                                    <i class="fa-solid fa-check-circle"></i>
+                                {% elif user.status == 'withdrawn' %}
+                                    <i class="fa-solid fa-user-slash"></i>
+                                {% else %}
+                                    <i class="fa-solid fa-clock"></i>
+                                {% endif %}
+                                {{ user.status | upper }}
+                            </span>
+                        </td>
+                        <td style="font-weight: 600; color: var(--text-muted);">
+                            v{{ user.consent_version }}
+                        </td>
+                        <td style="color: var(--text-muted); font-size: 0.9rem;">
+                            <i class="fa-regular fa-clock"></i>
+                            {{ user.updated_at[:16] if user.updated_at else user.consented_at[:16] }}
+                        </td>
+                        <td style="text-align: right;">
+                            <a href="/admin/users/{{ user.legacy_id }}" class="btn-manage">
+                                <i class="fa-solid fa-gear"></i> Manage
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📭</div>
+                                <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; color: var(--text-main);">No users found</p>
+                                <p style="color: var(--text-muted); max-width: 400px; margin: 0 auto;">
+                                    Users will appear in this list once they complete the OAuth flow and sign the informed consent form.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+</div>
 {% endblock %}

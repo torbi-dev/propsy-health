@@ -55,8 +55,8 @@ async def ensure_valid_token(db: AsyncIOMotorDatabase, legacy_id: str) -> str:
             token=token_info.get("access_token"),
             refresh_token=refresh_token,
             token_uri="https://oauth2.googleapis.com/token",
-            client_id=settings.google_client_id,
-            client_secret=settings.google_client_secret,
+            client_id=settings.google_oauth_config["web"]["client_id"],
+            client_secret=settings.google_oauth_config["web"]["client_secret"],
             scopes=token_info.get("scopes")
         )
         

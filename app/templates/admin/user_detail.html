@@ -1,11 +1,29 @@
 {% extends "admin/base.html" %}
 {% block title %}User {{ user.legacy_id }}{% endblock %}
+
 {% block content %}
     <h1>User Details: <code>{{ user.legacy_id }}</code></h1>
     
+    <!-- Feedback Messages -->
     {% if deleted %}
-    <div class="card" style="background: #fee2e2; border-left: 4px solid #dc2626; color: #991b1b;">
+    <div class="card" style="background: #fee2e2; border-left: 4px solid #dc2626; color: #991b1b; margin-bottom: 24px;">
         <strong>⚠️ SUCCESS:</strong> All data for this user has been permanently deleted from the database.
+    </div>
+    {% endif %}
+
+    {% if sync_success %}
+    <div class="card" style="background: #d1fae5; border-left: 4px solid #059669; color: #065f46; margin-bottom: 24px;">
+        <strong>✅ Success:</strong> Successfully synced {{ sync_count }} days of health data from Google API.
+    </div>
+    {% endif %}
+    
+    {% if sync_error == 'auth' %}
+    <div class="card" style="background: #fee2e2; border-left: 4px solid #dc2626; color: #991b1b; margin-bottom: 24px;">
+        <strong>❌ Authentication Error:</strong> The user's Google token is invalid or revoked. They need to reconnect.
+    </div>
+    {% elif sync_error == 'general' %}
+    <div class="card" style="background: #fee2e2; border-left: 4px solid #dc2626; color: #991b1b; margin-bottom: 24px;">
+        <strong>❌ Sync Error:</strong> An unexpected error occurred while fetching data. Check server logs.
     </div>
     {% endif %}
 
@@ -29,7 +47,7 @@
 
         <!-- Token & Health Info -->
         <div class="card">
-            <h2>Connection & Data</h2>
+            <h2>Connection & Data Sync</h2>
             {% if token %}
                 <p><strong>Token Status:</strong> <span class="badge badge-{{ token.status }}">{{ token.status | upper }}</span></p>
                 <p><strong>Health ID:</strong> <code>{{ token.health_id }}</code></p>
@@ -46,6 +64,16 @@
                 <p><strong>Latest Record Date:</strong> {{ latest_health.date_of_datas }}</p>
                 <p><strong>Steps:</strong> {{ latest_health.steps }} | <strong>Calories:</strong> {{ latest_health.calories }}</p>
             {% endif %}
+
+            <!-- SYNC BUTTON -->
+            <form action="/admin/users/{{ user.legacy_id }}/sync" method="POST" style="margin-top: 20px;">
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                    🔄 Sync Last 7 Days from Google API
+                </button>
+                <p style="font-size: 0.8rem; color: #64748b; margin-top: 8px; text-align: center;">
+                    This will fetch missing data for the last 7 days and save it to the database.
+                </p>
+            </form>
         </div>
     </div>
 

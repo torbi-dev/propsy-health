@@ -1,54 +1,112 @@
 {% extends "admin/base.html" %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}Admin Dashboard{% endblock %}
+
 {% block content %}
-    <h1>System Overview</h1>
+<div class="container" style="padding: 40px 24px;">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div>
+            <h1 class="dashboard-title">📊 System Overview</h1>
+            <p class="dashboard-subtitle">Monitor user activity, consents, and data synchronization</p>
+        </div>
+    </div>
     
+    <!-- Stats Grid -->
     <div class="stats-grid">
-        <div class="stat-card">
+        <div class="stat-card success">
+            <div class="stat-icon">✅</div>
             <div class="stat-value">{{ stats.active_consents }}</div>
             <div class="stat-label">Active Consents</div>
+            <div class="stat-change positive">
+                <i class="fa-solid fa-check-circle"></i> Active participants
+            </div>
         </div>
-        <div class="stat-card">
+        
+        <div class="stat-card warning">
+            <div class="stat-icon">🚪</div>
             <div class="stat-value">{{ stats.withdrawn_consents }}</div>
             <div class="stat-label">Withdrawn</div>
+            <div class="stat-change positive" style="background: #fee2e2; color: #991b1b;">
+                <i class="fa-solid fa-user-slash"></i> Study withdrawals
+            </div>
         </div>
-        <div class="stat-card">
+        
+        <div class="stat-card info">
+            <div class="stat-icon">🔐</div>
             <div class="stat-value">{{ stats.total_tokens }}</div>
             <div class="stat-label">Stored Tokens</div>
+            <div class="stat-change positive">
+                <i class="fa-solid fa-key"></i> OAuth connections
+            </div>
         </div>
-        <div class="stat-card">
+        
+        <div class="stat-card primary">
+            <div class="stat-icon"></div>
             <div class="stat-value">{{ stats.total_health_records }}</div>
             <div class="stat-label">Health Records</div>
+            <div class="stat-change positive">
+                <i class="fa-solid fa-database"></i> Total records cached
+            </div>
         </div>
     </div>
 
-    <div class="card">
-        <h2>Recent Activity</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Legacy ID</th>
-                    <th>Status</th>
-                    <th>Consent Date</th>
-                    <th>IP Address (Decrypted)</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for user in recent_users %}
-                <tr>
-                    <td><code>{{ user.legacy_id }}</code></td>
-                    <td>
-                        <span class="badge badge-{{ user.status }}">{{ user.status | upper }}</span>
-                    </td>
-                    <td>{{ user.consented_at[:10] if user.consented_at else 'N/A' }}</td>
-                    <td><code>{{ user.ip_address }}</code></td>
-                    <td><a href="/admin/users/{{ user.legacy_id }}" class="btn btn-primary">View Details</a></td>
-                </tr>
-                {% else %}
-                <tr><td colspan="5" style="text-align:center; color:#94a3b8;">No users found.</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <!-- Recent Activity Table -->
+    <div class="modern-table-container">
+        <div class="card-header" style="padding: 20px 24px;">
+            <h2 class="card-title"> Recent Activity</h2>
+            <a href="/admin/users" class="btn-view">
+                <i class="fa-solid fa-users"></i> View All Users
+            </a>
+        </div>
+        
+        <div style="overflow-x: auto;">
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Legacy ID</th>
+                        <th>Status</th>
+                        <th>Consent Date</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in recent_users %}
+                    <tr>
+                        <td>
+                            <span class="id-code">{{ user.legacy_id }}</span>
+                        </td>
+                        <td>
+                            <span class="status-badge {{ user.status }}">
+                                {{ user.status | upper }}
+                            </span>
+                        </td>
+                        <td style="color: var(--text-muted); font-size: 0.9rem;">
+                            {% if user.consented_at %}
+                                <i class="fa-regular fa-calendar"></i> {{ user.consented_at[:10] }}
+                            {% else %}
+                                <span style="color: #94a3b8;">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right;">
+                            <a href="/admin/users/{{ user.legacy_id }}" class="btn-view">
+                                <i class="fa-solid fa-eye"></i> View Details
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📭</div>
+                                <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; color: var(--text-main);">No users found</p>
+                                <p style="color: var(--text-muted);">Users will appear here once they consent to the study.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
+</div>
 {% endblock %}

@@ -329,7 +329,7 @@ def setup_security(app: FastAPI):
     """
     settings = get_settings()
     
-        # === Security Headers Middleware ===
+    # === Security Headers Middleware ===
     @app.middleware("http")
     async def add_security_headers(request: Request, call_next):
         """Add security headers to all responses."""
@@ -341,15 +341,12 @@ def setup_security(app: FastAPI):
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         
-        # FIXED: Content Security Policy
-        # - Allows Font Awesome (cdn.jsdelivr.net, use.fontawesome.com)
-        # - Allows Chart.js (cdn.jsdelivr.net)
-        # - Allows inline JS and CSS (required for your onclick handlers and Jinja styles)
+        # FIXED: Content Security Policy - Corrected syntax
         csp = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://use.fontawesome.com; "
-            "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://use.fontawesome.com; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://use.fontawesome.com https://cdnjs.cloudflare.com; "
+            "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://use.fontawesome.com https://cdnjs.cloudflare.com; "
             "img-src 'self' data: blob:; "
             "connect-src 'self';"
         )

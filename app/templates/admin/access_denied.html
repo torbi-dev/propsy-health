@@ -1,0 +1,11 @@
+{% extends "admin/base.html" %}
+{% block title %}Accès Refusé{% endblock %}
+{% block content %}
+<div style="text-align: center; padding: 60px 20px;">
+    <h1 style="color: #dc2626; font-size: 2rem;">⛔ Accès Refusé</h1>
+    <p style="color: var(--text-muted); margin: 20px 0;">
+        Le compte <strong>{{ email }}</strong> n'est pas autorisé à accéder à ce panneau d'administration.
+    </p>
+    <a href="/" class="btn btn-primary">Retour à l'accueil</a>
+</div>
+{% endblock %}

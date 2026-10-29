@@ -9,6 +9,7 @@ pymongo>=4.17.0
 # Google Auth
 google-auth>=2.56.2
 google-auth-oauthlib>=1.4.0
+authlib
 
 # Configuration & Validation
 python-dotenv>=1.2.2

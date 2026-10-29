@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     # --- Google OAuth ---
     # Avoid pydantic's error for complex nested structures by using Any type
     google_oauth_config: Any = None
+    google_oauth_admin: Any = None
     
     # Application Security
     secret_key: str
@@ -31,6 +32,7 @@ class Settings(BaseSettings):
     rate_limit_window: int = 60
     rate_limit_requests: int = 100
     admin_password: str
+    admin_mail: str
     
     # MongoDB
     mongodb_uri: str
@@ -39,6 +41,8 @@ class Settings(BaseSettings):
     # OAuth Redirect
     base_url: str
     redirect_path: str = "/oauth/callback"
+
+    admin_redirect_path: str = "/admin/oauth/callback"
     
     # Logging
     log_level: str = "INFO"
@@ -49,6 +53,7 @@ class Settings(BaseSettings):
         Charge et valide la configuration OAuth depuis la variable d'environnement JSON.
         """
         env_json = os.getenv("GOOGLE_OAUTH_CONFIG_JSON")
+        admin_json = os.getenv("GOOGLE_OAUTH_ADMIN")
         
         if env_json:
             try:
@@ -59,7 +64,18 @@ class Settings(BaseSettings):
             # Security : if the env variable is missing, raise an error to prevent misconfiguration
             raise ValueError(
                 "La variable d'environnement 'GOOGLE_OAUTH_CONFIG_JSON' est requise. "
-                "Veuillez la définir dans votre fichier .env (local) ou dans Secret Manager (Cloud Run)."
+                "Veuillez la définir dans votre fichier dans Secret Manager (Cloud Run)."
+            )
+
+        if admin_json:
+            try:
+                self.google_oauth_admin = json.loads(admin_json)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Le JSON dans GOOGLE_OAUTH_ADMIN est invalide : {e}")
+        else:
+            raise ValueError(
+                "La variable d'environnement 'GOOGLE_OAUTH_ADMIN' est requise. "
+                "Veuillez la définir dans votre fichier dans Secret Manager (Cloud Run)."
             )
             
         return self
@@ -68,6 +84,11 @@ class Settings(BaseSettings):
     def redirect_uri(self) -> str:
         """Build full redirect URI from base URL and path."""
         return f"{self.base_url.rstrip('/')}{self.redirect_path}"
+
+    @property
+    def admin_redirect_uri(self) -> str:
+        """Build full admin redirect URI from base URL and path."""
+        return f"{self.base_url.rstrip('/')}{self.admin_redirect_path}"
     
     @property
     def is_production(self) -> bool:

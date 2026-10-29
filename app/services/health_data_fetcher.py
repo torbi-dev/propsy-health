@@ -199,46 +199,99 @@ def _parse_sleep(data_points: list) -> dict:
 
 # MAIN ORCHESTRATOR
 
+
 async def fetch_daily_health_data(access_token: str, date: str) -> dict:
-    """Fetches all required data types for a specific date and returns a parsed dictionary."""
+    """Fetch all required health data for a date."""
+
+    import asyncio
+    import logging
+    import httpx
+    from datetime import datetime, timedelta
+
+    logger = logging.getLogger(__name__)
+
     date_obj = datetime.strptime(date, "%Y-%m-%d")
-    start_time = date_obj.strftime('%Y-%m-%dT00:00:00.000Z')
-    end_time = (date_obj + timedelta(days=1)).strftime('%Y-%m-%dT00:00:00.000Z')
-    date_today = (date_obj + timedelta(days=1)).strftime('%Y-%m-%d')
-    
-    # 1. Define Payloads
-    payload_heart = {"range": {"startTime": start_time, "endTime": end_time}, "windowSize": "10s", "pageSize": 10000}
-    payload_steps = {"range": {"startTime": start_time, "endTime": end_time}, "windowSize": "3600s", "pageSize": 1000}
-    payload_calories = {"range": {"startTime": start_time, "endTime": end_time}, "windowSize": "3600s", "pageSize": 300}
-    
-    # Sleep filter: We look for sleep sessions that ended on this specific date (morning wake up)
+    start_time = date_obj.strftime("%Y-%m-%dT00:00:00.000Z")
+    end_time = (date_obj + timedelta(days=1)).strftime(
+        "%Y-%m-%dT00:00:00.000Z"
+    )
+    date_today = (date_obj + timedelta(days=1)).strftime("%Y-%m-%d")
+
+    payload_heart = {
+        "range": {"startTime": start_time, "endTime": end_time},
+        "windowSize": "10s",
+        "pageSize": 10000,
+    }
+    payload_steps = {
+        "range": {"startTime": start_time, "endTime": end_time},
+        "windowSize": "3600s",
+        "pageSize": 1000,
+    }
+    payload_calories = {
+        "range": {"startTime": start_time, "endTime": end_time},
+        "windowSize": "3600s",
+        "pageSize": 300,
+    }
     payload_sleep = {
-        "filter": f'sleep.interval.civil_end_time >= "{date}" AND sleep.interval.civil_end_time < "{date_today}"'
+        "filter": (
+            f'sleep.interval.civil_end_time >= "{date}" '
+            f'AND sleep.interval.civil_end_time < "{date_today}"'
+        )
     }
 
-    # 2. Fetch Raw Data in Parallel
-    import asyncio
+    async def fetch_sleep_safe():
+        # Retry up to 3 times for transient server errors.
+        for attempt in range(3):
+            try:
+                return await _fetch_list(
+                    access_token, "sleep", payload_sleep
+                )
+            except httpx.HTTPStatusError as exc:
+                status_code = exc.response.status_code
+
+                if status_code < 500 or attempt == 2:
+                    logger.warning(
+                        "Sleep API unavailable for %s: HTTP %s; body=%s",
+                        date,
+                        status_code,
+                        exc.response.text[:500],
+                    )
+                    return {"dataPoints": []}
+
+                await asyncio.sleep(2 ** attempt)
+
+            except (httpx.RequestError, asyncio.TimeoutError) as exc:
+                if attempt == 2:
+                    logger.warning(
+                        "Sleep request failed for %s: %s",
+                        date,
+                        exc,
+                    )
+                    return {"dataPoints": []}
+
+                await asyncio.sleep(2 ** attempt)
+
+    # Heart rate, steps and calories remain required.
     heart_raw, steps_raw, calories_raw, sleep_raw = await asyncio.gather(
         _fetch_rollup(access_token, "heart-rate", payload_heart),
         _fetch_rollup(access_token, "steps", payload_steps),
         _fetch_rollup(access_token, "total-calories", payload_calories),
-        _fetch_list(access_token, "sleep", payload_sleep)
+        fetch_sleep_safe(),
     )
 
-    # 3. Parse and Build Record
     hr_data = _parse_heart_rate(heart_raw)
     sleep_data = _parse_sleep(sleep_raw.get("dataPoints", []))
-    
+
     return {
         "steps": _parse_steps(steps_raw),
         "calories": _parse_calories(calories_raw),
-        "wear_time": _parse_wear_time(heart_raw), # Wear time is derived from heart rate intervals
-        
+        "wear_time": _parse_wear_time(heart_raw),
+
         "avg_hr": hr_data["avg_hr"],
         "max_hr": hr_data["max_hr"],
         "resting_hr": hr_data["resting_hr"],
         "raw_heart_rate": hr_data["raw_heart_rate"],
-        
+
         "sleep_start": sleep_data.get("sleep_start"),
         "sleep_end": sleep_data.get("sleep_end"),
         "sleep_duration": sleep_data.get("sleep_duration"),

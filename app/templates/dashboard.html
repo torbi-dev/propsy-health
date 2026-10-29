@@ -28,18 +28,25 @@
     <!-- ========================================== -->
     <div class="grid-3" style="margin-bottom: 32px;">
         
-        <!-- Card 1: Study Status -->
+        <!-- Card 1: Synchronization Status -->
         <div class="card" style="border-top: 4px solid #10b981;">
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
                 <!-- Pulsing Green Dot -->
                 <div style="width: 12px; height: 12px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);"></div>
-                <h3 style="margin: 0; color: var(--text-main);">{{ t('active_enrollment') }}</h3>
+                <h3 style="margin: 0; color: var(--text-main);">{{ t('sync_status_title') }}</h3>
             </div>
             <p style="color: var(--text-muted); line-height: 1.6; margin-bottom: 16px;">
-                {{ t('active_enrollment_desc') }}
+                {{ t('sync_status_desc') }}
             </p>
-            <div style="background: #f0fdf4; padding: 10px; border-radius: 6px; font-size: 0.85rem; color: #065f46; border: 1px solid #bbf7d0;">
-                <strong><i class="fa-solid fa-shield-halved" style="margin-right: 6px;"></i>{{ t('status_label') }}:</strong> {{ t('syncing_encrypted') }}
+            <div style="background: #f0fdf4; padding: 16px; border-radius: 6px; border: 1px solid #bbf7d0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                    <span style="font-size: 0.85rem; font-weight: 600; color: #065f46;">
+                        <i class="fa-solid fa-calendar-check" style="margin-right: 6px;"></i> {{ t('last_sync_label') }}
+                    </span>
+                    <span style="font-family: monospace; font-weight: 700; font-size: 1.1rem; color: #047857;">
+                        {{ last_sync_date }}
+                    </span>
+                </div>
             </div>
         </div>
 

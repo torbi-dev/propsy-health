@@ -25,9 +25,18 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 @router.get("/", response_class=HTMLResponse)
 async def dashboard_home(
     request: Request,
-    current_user: SessionUser = Depends(get_current_user_with_consent)
+    current_user: SessionUser = Depends(get_current_user_with_consent),
+    db: AsyncIOMotorDatabase = Depends(get_database)
 ):
+    # Récupérer la dernière date de synchronisation
+    health_col = db["health_records"]
+    latest_record = await health_col.find_one(
+        {"legacy_id": current_user.legacy_id},
+        sort=[("date_of_datas", -1)] # Trie par date de données la plus récente
+    )
     
+    last_sync_date = latest_record["date_of_datas"] if latest_record else "Aucune synchronisation"
+
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -35,6 +44,7 @@ async def dashboard_home(
             "current_user": current_user,
             "legacy_id": current_user.legacy_id,
             "health_id": current_user.health_id,
+            "last_sync_date": last_sync_date
         }
     )
 

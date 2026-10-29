@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     base_url: str
     redirect_path: str = "/oauth/callback"
 
-    admin_redirect_path: str = "/admin/oauth/callback"
+    admin_redirect_path: str = "/admin/auth/callback"
     
     # Logging
     log_level: str = "INFO"

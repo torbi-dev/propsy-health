@@ -63,7 +63,10 @@ async def require_admin_email(request: Request):
 async def admin_login(request: Request):
     """Redirige vers la page de connexion Google."""
     # prompt=select_account force l'utilisateur à choisir son compte (utile si plusieurs connectés)
-    redirect_uri = request.url_for('admin_auth_callback')
+    redirect_uri = (
+        "https://propsy-health-713903165830.europe-west1.run.app"
+        "/admin/auth/callback"
+    )
     return await oauth.google.authorize_redirect(request, redirect_uri, prompt="select_account")
 
 @router.get("/auth/callback")

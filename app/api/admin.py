@@ -46,14 +46,24 @@ class AdminAuthError(Exception):
     pass
 
 async def require_admin_email(request: Request):
-    """Vérifie que l'utilisateur est connecté ET que son email est celui de l'admin."""
     is_admin = request.session.get("is_admin")
     admin_email = request.session.get("admin_email")
-    
-    # Sécurité en profondeur : on revérifie l'email à chaque requête
-    if not is_admin or admin_email != settings.admin_mail:
+    google_sub = request.session.get("google_sub")
+
+    allowed_email = (settings.admin_mail or "").strip().casefold()
+
+    if (
+        is_admin is not True
+        or not isinstance(admin_email, str)
+        or admin_email.casefold() != allowed_email
+        or not google_sub
+    ):
         request.session.clear()
-        raise HTTPException(status_code=403, detail="Accès refusé.")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé.",
+        )
+
 
 # ============================================================================
 # AUTH ROUTES
@@ -69,34 +79,73 @@ async def admin_login(request: Request):
     )
     return await oauth.google.authorize_redirect(request, redirect_uri, prompt="select_account")
 
+
 @router.get("/auth/callback")
 async def admin_auth_callback(request: Request):
-    """Google renvoie l'utilisateur ici après connexion. On vérifie l'email."""
+    """Valide l'identité Google et ouvre une session admin."""
     try:
         token = await oauth.google.authorize_access_token(request)
-        userinfo = token.get('userinfo')
-        
+        userinfo = token.get("userinfo")
+
         if not userinfo:
-            raise HTTPException(status_code=400, detail="Impossible de récupérer les infos utilisateur.")
-            
-        user_email = userinfo.get('email')
-        
-        # 🔒 VÉRIFICATION CRITIQUE : L'email correspond-il à l'admin autorisé ?
-        if user_email == settings.admin_mail:
-            request.session["is_admin"] = True
-            request.session["admin_email"] = user_email
-            logger.info(f"✅ Admin login successful via Google OAuth: {user_email}")
-            return RedirectResponse(url="/admin/", status_code=status.HTTP_303_SEE_OTHER)
-        else:
-            # L'utilisateur est connecté à Google, mais n'est pas l'admin
-            logger.warning(f" Unauthorized admin access attempt by: {user_email}")
-            return templates.TemplateResponse(request, "admin/access_denied.html", {
-                "email": user_email
-            })
-            
-    except Exception as e:
-        logger.error(f"❌ Admin OAuth error: {e}")
-        raise HTTPException(status_code=500, detail="Erreur d'authentification.")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Identité Google indisponible.",
+            )
+
+        # L'identité doit provenir d'un retour OAuth/OIDC validé.
+        google_sub = userinfo.get("sub")
+        user_email = userinfo.get("email")
+        email_verified = userinfo.get("email_verified") is True
+
+        allowed_email = (settings.admin_mail or "").strip().casefold()
+        authenticated_email = (
+            user_email.strip().casefold()
+            if isinstance(user_email, str)
+            else ""
+        )
+
+        if (
+            not google_sub
+            or not email_verified
+            or not authenticated_email
+            or authenticated_email != allowed_email
+        ):
+            request.session.clear()
+            logger.warning(
+                "Admin OAuth rejected: missing/invalid identity "
+                "or unauthorized email"
+            )
+            return templates.TemplateResponse(
+                request,
+                "admin/access_denied.html",
+                {"email": user_email or ""},
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Ne pas conserver de données de session antérieures
+        # lors de l'élévation des privilèges.
+        request.session.clear()
+        request.session["is_admin"] = True
+        request.session["admin_email"] = authenticated_email
+        request.session["google_sub"] = google_sub
+
+        logger.info("Admin login successful")
+        return RedirectResponse(
+            url="/admin/",
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Admin OAuth callback failed")
+        request.session.clear()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Échec de l'authentification Google.",
+        )
+
 
 @router.get("/logout")
 async def admin_logout(request: Request):

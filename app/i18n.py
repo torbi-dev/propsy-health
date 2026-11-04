@@ -317,7 +317,7 @@ translations = {
         "terms_desc_item_1": "Connects to your Google Health account via OAuth 2.0",
         "terms_desc_item_2": "Reads daily fitness, sleep, and heart rate metrics",
         "terms_desc_item_3": "Stores this data in an encrypted database",
-        "terms_desc_item_4": "Provides a personal dashboard for visualization",
+        "terms_desc_item_4": "Provides a personal dashboard regarding the status of your progress on the study",
         "terms_desc_item_5": "Allows you to export or delete your data by contacting our support team",
         "terms_important_notice": "Important: This service is NOT a medical device and does not provide medical advice.",
         
@@ -667,7 +667,7 @@ translations = {
         "terms_desc_item_1": "Se connecte à votre compte Google Health via OAuth 2.0",
         "terms_desc_item_2": "Lit les métriques quotidiennes de fitness, de sommeil et de fréquence cardiaque",
         "terms_desc_item_3": "Stocke ces données dans une base de données chiffrée",
-        "terms_desc_item_4": "Fournit un export JSON complet de vos données de santé",
+        "terms_desc_item_4": "Fournit un dashboard personnel concernant l'état de votre progression dans l'étude",
         "terms_desc_item_5": "Vous permet de contacter notre équipe de support pour exporter ou supprimer vos données",
         "terms_important_notice": "Important : Ce service N'EST PAS un dispositif médical et ne fournit pas de conseils médicaux.",
         
